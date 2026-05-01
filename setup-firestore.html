@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Bloom — Firestore Setup</title>
+  <style>
+    body { font-family:monospace; padding:24px; background:#1a1a2e; color:#fff; }
+    button { padding:12px 24px; background:#b22025; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:14px; margin:8px 4px; }
+    button:hover { background:#8b191d; }
+    #log { margin-top:20px; padding:16px; background:#0d0d1a; border-radius:8px; min-height:200px; white-space:pre-wrap; font-size:13px; line-height:1.6; }
+    .ok  { color:#16a34a; }
+    .err { color:#dc2626; }
+    .inf { color:#6b7280; }
+  </style>
+</head>
+<body>
+<h2 style="color:#b22025">🔧 Bloom Firestore Setup</h2>
+<p style="color:#6b7280;margin-bottom:20px">Run this ONCE to populate Firestore with all data</p>
+<button onclick="runSetup()">▶ Run Full Setup</button>
+<div id="log">Ready — click Run Full Setup to start...</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, doc, setDoc, collection, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+const app = initializeApp({
+  apiKey: "AIzaSyC6dO6F02hlsZ9XKaNgmhHCeFJ0cwhfg6o",
+  authDomain: "bloom-delivery-f9540.firebaseapp.com",
+  projectId: "bloom-delivery-f9540",
+  storageBucket: "bloom-delivery-f9540.firebasestorage.app",
+  messagingSenderId: "409469512995",
+  appId: "1:409469512995:web:74eb908a613f3f2c9a3096"
+});
+const db   = getFirestore(app);
+const auth = getAuth(app);
+await signInAnonymously(auth);
+
+const log = document.getElementById('log');
+function print(msg, type='inf') {
+  log.innerHTML += '<span class="' + type + '">' + msg + '\n</span>';
+  log.scrollTop = log.scrollHeight;
+}
+
+window.runSetup = async function() {
+  log.innerHTML = '';
+  print('Starting setup...\n');
+
+  try {
+    // ── Stores ──────────────────────────────────────────────────────────────
+    print('📦 Creating stores...');
+    await setDoc(doc(db, 'stores', 'store_01'), { name: 'Bloom Maadi',     active: true });
+    await setDoc(doc(db, 'stores', 'store_02'), { name: 'Bloom Nasr City', active: true });
+    print('✅ Stores done', 'ok');
+
+    // ── Users (passcode → user data) ─────────────────────────────────────
+    print('\n👤 Creating users...');
+    const users = [
+      { passcode:'3664', username:'M.Saad',    store_id:'store_01', role:'staff' },
+      { passcode:'5786', username:'M.Mohie',   store_id:'store_01', role:'staff' },
+      { passcode:'1256', username:'S.Adel',    store_id:'store_01', role:'staff' },
+      { passcode:'7415', username:'K.Mahmoud', store_id:'store_01', role:'staff' },
+      { passcode:'9632', username:'H.Gamal',   store_id:'store_01', role:'staff' },
+      { passcode:'8521', username:'M.Hazem',   store_id:'store_01', role:'staff' },
+      { passcode:'4567', username:'S.Essam',   store_id:'store_01', role:'staff' },
+      { passcode:'0000', username:'Admin',     store_id:'store_01', role:'store_admin' },
+    ];
+    for (const u of users) {
+      await setDoc(doc(db, 'users', u.passcode), u);
+      print('  ✓ ' + u.username);
+    }
+    print('✅ Users done', 'ok');
+
+    // ── Zones ─────────────────────────────────────────────────────────────
+    print('\n🗺 Creating zones...');
+    const zones = [
+      { id:'zone_1', name:'Zone 1', price:25, sla_minutes:60, store_id:'store_01' },
+      { id:'zone_2', name:'Zone 2', price:35, sla_minutes:60, store_id:'store_01' },
+      { id:'zone_3', name:'Zone 3', price:45, sla_minutes:60, store_id:'store_01' },
+      { id:'zone_4', name:'Zone 4', price:60, sla_minutes:60, store_id:'store_01' },
+    ];
+    for (const z of zones) {
+      await setDoc(doc(db, 'zones', z.id + '_' + z.store_id), z);
+      print('  ✓ ' + z.name + ' — ' + z.price + ' EGP');
+    }
+    print('✅ Zones done', 'ok');
+
+    // ── Delivery Agents ───────────────────────────────────────────────────
+    print('\n🚴 Creating delivery agents...');
+    const agents = [
+      { id:'AGT01', name:'Hesham',          store_id:'store_01', status:'active', password:'1594' },
+      { id:'AGT02', name:'Abdallah',        store_id:'store_01', status:'active', password:'6028' },
+      { id:'AGT03', name:'Ahmed Mamdo7',    store_id:'store_01', status:'active', password:'3742' },
+      { id:'AGT04', name:'Mahmoud Sabet',   store_id:'store_01', status:'active', password:'8165' },
+      { id:'AGT05', name:'Mahmoud Mohamed', store_id:'store_01', status:'active', password:'9250' },
+      { id:'AGT06', name:'Mohamed Naser',   store_id:'store_01', status:'active', password:'5413' },
+      { id:'AGT07', name:'Mohamed Gamal',   store_id:'store_01', status:'active', password:'2087' },
+      { id:'AGT08', name:'Maged',           store_id:'store_01', status:'active', password:'4862' },
+      { id:'AGT09', name:'Sayed Salam',     store_id:'store_01', status:'active', password:'6178' },
+    ];
+    for (const a of agents) {
+      // Store password as plain text for now — hash in production
+      await setDoc(doc(db, 'agents', a.id), {
+        name: a.name, store_id: a.store_id,
+        status: a.status, password: a.password
+      });
+      print('  ✓ ' + a.name + ' (ID: ' + a.id + ', Pass: ' + a.password + ')');
+    }
+    print('✅ Agents done', 'ok');
+
+    print('\n🎉 SETUP COMPLETE! All data written to Firestore.', 'ok');
+    print('\nYou can now use:', 'ok');
+    print('  Handover App — passcode: 3664, 5786, 1256, 7415, 9632, 8521, 4567', 'ok');
+    print('  Delivery App — agent + password (shown above)', 'ok');
+
+  } catch(e) {
+    print('\n❌ Error: ' + e.message, 'err');
+    print('Make sure Firestore is in TEST MODE in Firebase console', 'err');
+  }
+};
+</script>
+</body>
+</html>
